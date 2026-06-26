@@ -7,26 +7,8 @@ struct ContentView: View {
     @State private var selectedProfileId: UUID?
     @State private var newProfile: MountProfile? // Draft profile not yet added
     
-    // Grouping Logic
-    var groupedProfiles: [(String, [MountProfile])] {
-        let groups = Dictionary(grouping: config.profiles) { profile -> String in
-            guard let url = URL(string: profile.serverURL), let scheme = url.scheme else {
-                return "Other"
-            }
-            let s = scheme.lowercased()
-            if s.hasPrefix("smb") { return "SMB" }
-            if s.hasPrefix("afp") { return "AFP" }
-            if s.hasPrefix("nfs") { return "NFS" }
-            if s.hasPrefix("webdav") || s.hasPrefix("http") || s.hasPrefix("https") { return "WebDAV" }
-            if s.hasPrefix("ftp") { return "FTP (Read Only)" }
-            return "Other"
-        }
-        
-        let order = ["SMB", "AFP", "NFS", "WebDAV", "FTP (Read Only)", "Other"]
-        return order.compactMap { key in
-            guard let profiles = groups[key], !profiles.isEmpty else { return nil }
-            return (key, profiles)
-        }
+    var groupedProfiles: [ProfileGroup] {
+        ProfileGrouper.group(config.profiles)
     }
     
     private func addNewProfile() {
@@ -46,9 +28,9 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedProfileId) {
-                ForEach(groupedProfiles, id: \.0) { groupName, profiles in
-                    Section(header: Text(LocalizedStringKey(groupName))) {
-                        ForEach(profiles) { profile in
+                ForEach(groupedProfiles) { group in
+                    Section(header: Text(LocalizedStringKey(group.name))) {
+                        ForEach(group.profiles) { profile in
                             NavigationLink(value: profile.id) {
                                 SidebarRow(profile: profile)
                             }
@@ -122,10 +104,10 @@ struct ContentView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("AddNewProfile"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .addNewProfile)) { _ in
             addNewProfile()
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("SelectMountProfile"))) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: .selectMountProfile)) { notification in
             if let id = notification.userInfo?["id"] as? UUID {
                 // Delay slightly to ensure list is updated
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -202,4 +184,3 @@ struct SidebarRow: View {
         .padding(.vertical, 4)
     }
 }
-

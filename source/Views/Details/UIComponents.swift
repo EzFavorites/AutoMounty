@@ -85,7 +85,7 @@ struct Toast: Equatable {
         case success
         case error
         case info
-        
+
         var icon: String {
             switch self {
             case .success: return "checkmark.circle.fill"
@@ -93,7 +93,7 @@ struct Toast: Equatable {
             case .info: return "info.circle.fill"
             }
         }
-        
+
         var color: Color {
             switch self {
             case .success: return .green
@@ -102,10 +102,21 @@ struct Toast: Equatable {
             }
         }
     }
-    
+
+    let id = UUID()
     let style: Style
     let message: String
-    var duration: TimeInterval = 2.0
+    let duration: TimeInterval
+
+    init(style: Style, message: String, duration: TimeInterval = 2.0) {
+        self.style = style
+        self.message = message
+        self.duration = duration
+    }
+
+    static func == (lhs: Toast, rhs: Toast) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 struct ToastView: View {

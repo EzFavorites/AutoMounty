@@ -32,11 +32,11 @@ struct SettingsView: View {
                     
                     Toggle("Show Icon in Dock", isOn: Binding(
                         get: { UserDefaults.standard.bool(forKey: "ShowDockIcon") },
-                        set: { 
-                            UserDefaults.standard.set($0, forKey: "ShowDockIcon")
-                            let policy: NSApplication.ActivationPolicy = $0 ? .regular : .accessory
+                        set: { newValue in
+                            UserDefaults.standard.set(newValue, forKey: "ShowDockIcon")
+                            let policy: NSApplication.ActivationPolicy = newValue ? .regular : .accessory
                             NSApp.setActivationPolicy(policy)
-                            if $0 {
+                            if newValue {
                                 NSApp.activate(ignoringOtherApps: true)
                             }
                         }

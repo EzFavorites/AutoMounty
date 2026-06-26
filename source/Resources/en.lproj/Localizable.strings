@@ -138,6 +138,52 @@
 "Run On:" = "Run On:";
 "Select when this automation should run" = "Select when this automation should run";
 
+/* Script Events */
+"Mounting" = "Mounting";
+"Mounted" = "Mounted";
+"Unmounting" = "Unmounting";
+"Unmounted" = "Unmounted";
+"Mount Failed" = "Mount Failed";
+
+/* Automation Types */
+"Shell Script" = "Shell Script";
+"Application" = "Application";
+"Wake On LAN" = "Wake On LAN";
+
 /* Server Config */
 "Hide Advanced Options" = "Hide Advanced Options";
 "Show Advanced Options" = "Show Advanced Options";
+
+/* Tooltips */
+"Auto Mount Enabled" = "Auto Mount Enabled";
+"Add Server" = "Add Server";
+"Open in Finder" = "Open in Finder";
+"Unmount" = "Unmount";
+"Enable or disable this task" = "Enable or disable this task";
+"Delete this task" = "Delete this task";
+"Delete this rule" = "Delete this rule";
+"Browse for file..." = "Browse for file...";
+"Select local mount point..." = "Select local mount point...";
+"Target MAC address for Wake-on-LAN" = "Target MAC address for Wake-on-LAN";
+"Broadcast address for the magic packet" = "Broadcast address for the magic packet";
+"Command line arguments passed to the script" = "Command line arguments passed to the script";
+
+/* Status Labels */
+"Connecting..." = "Connecting...";
+"Error" = "Error";
+"Available" = "Available";
+
+/* Automation Details */
+"MAC Address" = "MAC Address";
+"Broadcast" = "Broadcast";
+"Wait" = "Wait";
+"seconds" = "seconds";
+"App Path" = "App Path";
+"Script Path" = "Script Path";
+"Arguments" = "Arguments";
+
+/* VPN Picker */
+"Empty for Any" = "Empty for Any";
+
+/* SMB Configured Tag */
+"(Configured)" = "(Configured)";

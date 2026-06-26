@@ -128,9 +128,7 @@ struct DiscoveryView: View {
                     self.finishAdding(profile: profile)
                     
                 case .failure(let error):
-                    // Error logged by service
-                    // Maybe show alert? For now just log.
-                    print("Error adding server: \(error)")
+                    Logger.error("Failed to add server: \(error.localizedDescription)")
                 }
             }
         }
@@ -145,7 +143,7 @@ struct DiscoveryView: View {
         
         // Notify to select the new profile
         NotificationCenter.default.post(
-            name: Notification.Name("SelectMountProfile"),
+            name: .selectMountProfile,
             object: nil,
             userInfo: ["id": profile.id]
         )

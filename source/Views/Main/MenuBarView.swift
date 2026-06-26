@@ -5,25 +5,8 @@ struct MenuBarView: View {
     @ObservedObject var config = ConfigManager.shared
     @Environment(\.openWindow) var openWindow
     
-    var groupedProfiles: [(String, [MountProfile])] {
-        let groups = Dictionary(grouping: config.profiles) { profile -> String in
-            guard let url = URL(string: profile.serverURL), let scheme = url.scheme else {
-                return "Other"
-            }
-            let s = scheme.lowercased()
-            if s.hasPrefix("smb") { return "SMB" }
-            if s.hasPrefix("afp") { return "AFP" }
-            if s.hasPrefix("nfs") { return "NFS" }
-            if s.hasPrefix("webdav") || s.hasPrefix("http") || s.hasPrefix("https") { return "WebDAV" }
-            if s.hasPrefix("ftp") { return "FTP (Read Only)" }
-            return "Other"
-        }
-        
-        let order = ["SMB", "AFP", "NFS", "WebDAV", "FTP (Read Only)", "Other"]
-        return order.compactMap { key in
-            guard let profiles = groups[key], !profiles.isEmpty else { return nil }
-            return (key, profiles)
-        }
+    var groupedProfiles: [ProfileGroup] {
+        ProfileGrouper.group(config.profiles)
     }
     
     var body: some View {
@@ -43,7 +26,7 @@ struct MenuBarView: View {
                     
                     // Delay slightly to ensure window is loaded
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        NotificationCenter.default.post(name: Notification.Name("AddNewProfile"), object: nil)
+                        NotificationCenter.default.post(name: .addNewProfile, object: nil)
                     }
                 }) {
                     Image(systemName: "plus")
@@ -71,6 +54,7 @@ struct MenuBarView: View {
                 Button(action: {
                     openWindow(id: "main")
                     NSApplication.shared.activate(ignoringOtherApps: true)
+                    NotificationCenter.default.post(name: .openSettings, object: nil)
                 }) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 14))
@@ -103,10 +87,10 @@ struct MenuBarView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(groupedProfiles, id: \.0) { groupName, profiles in
+                        ForEach(groupedProfiles) { group in
                             // Section Header
                             HStack {
-                                Text(LocalizedStringKey(groupName))
+                                Text(LocalizedStringKey(group.name))
                                     .font(.caption)
                                     .fontWeight(.bold)
                                     .foregroundColor(.secondary)
@@ -116,7 +100,7 @@ struct MenuBarView: View {
                             .padding(.top, 12)
                             .padding(.bottom, 4)
                             
-                            ForEach(profiles) { profile in
+                            ForEach(group.profiles) { profile in
                                 MountRowView(profile: profile)
                                 Divider()
                                     .padding(.leading, 16)
@@ -232,13 +216,14 @@ struct MountRowView: View {
                         .scaleEffect(0.5)
                         .frame(width: 8, height: 8)
                     
-                case .error(_):
+                case .error(let errorMessage):
                     Text("Error")
                         .font(.footnote)
                         .foregroundColor(.red)
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundColor(.red)
                         .font(.caption)
+                        .help(Text(errorMessage))
                     
                     // Retry Button
                     Button(action: {
@@ -285,7 +270,7 @@ struct MountRowView: View {
             openWindow(id: "main")
             NSApplication.shared.activate(ignoringOtherApps: true)
             NotificationCenter.default.post(
-                name: Notification.Name("SelectMountProfile"),
+                name: .selectMountProfile,
                 object: nil,
                 userInfo: ["id": profile.id]
             )

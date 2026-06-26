@@ -2,48 +2,47 @@ import Foundation
 
 public struct MountProfile: Codable, Identifiable, Hashable, Sendable {
     public var id: UUID = UUID()
+    public var schemaVersion: Int = 2
     public var serverURL: String // smb://user@server/share
     public var mountPoint: String // Optional: local path to mount at
-    // var allowedSSIDs: [String] = [] // Deprecated, use rules instead
     public var isEnabled: Bool = true
     public var autoMount: Bool = false
-    
+
     // New Rules System
     public var rules: [MountRule] = []
     public var ruleLogic: RuleLogic = .all
-    
+
     // Bonjour Support
     public var bonjourHostname: String? // Stores the Bonjour service name (e.g. "MyNAS") for IP updates
-    
+
     // Scripting & Automation
     public var automations: [AutomationConfig] = []
-    
+
     // UI Helper
     public var displayName: String {
         if serverURL.isEmpty { return "Untitled Server" }
         guard let url = URL(string: serverURL) else { return serverURL }
-        
-        // Try to get the last path component
+
         let lastComponent = url.lastPathComponent
         if !lastComponent.isEmpty && lastComponent != "/" {
             return lastComponent
         }
-        
-        // If no path component, try host
+
         if let host = url.host {
             return host
         }
-        
+
         return serverURL
     }
-    
+
     // Custom decoding to handle migration
     enum CodingKeys: String, CodingKey {
-        case id, name, serverURL, mountPoint, allowedSSIDs, isEnabled, autoMount, wifiSSID, rules, ruleLogic, bonjourHostname, scripts, wolConfig, automations
+        case id, schemaVersion, serverURL, mountPoint, allowedSSIDs, isEnabled, autoMount, wifiSSID, rules, ruleLogic, bonjourHostname, scripts, wolConfig, automations
     }
-    
+
     public init(id: UUID = UUID(), serverURL: String, mountPoint: String, rules: [MountRule] = [], ruleLogic: RuleLogic = .all, isEnabled: Bool = true, autoMount: Bool = false, bonjourHostname: String? = nil, automations: [AutomationConfig] = []) {
         self.id = id
+        self.schemaVersion = 2
         self.serverURL = serverURL
         self.mountPoint = mountPoint
         self.rules = rules
@@ -53,19 +52,20 @@ public struct MountProfile: Codable, Identifiable, Hashable, Sendable {
         self.bonjourHostname = bonjourHostname
         self.automations = automations
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         serverURL = try container.decode(String.self, forKey: .serverURL)
         mountPoint = try container.decode(String.self, forKey: .mountPoint)
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
         autoMount = try container.decode(Bool.self, forKey: .autoMount)
         bonjourHostname = try container.decodeIfPresent(String.self, forKey: .bonjourHostname)
-        
+
         // Load new automations
         automations = try container.decodeIfPresent([AutomationConfig].self, forKey: .automations) ?? []
-        
+
         // Migration: Load old scripts
         if let oldScripts = try? container.decodeIfPresent([OldScriptConfig].self, forKey: .scripts), !oldScripts.isEmpty {
             for script in oldScripts {
@@ -78,7 +78,7 @@ public struct MountProfile: Codable, Identifiable, Hashable, Sendable {
                 automations.append(newAuto)
             }
         }
-        
+
         // Migration: Load old WOL
         if let wol = try? container.decodeIfPresent(WOLConfig.self, forKey: .wolConfig) {
             var newAuto = AutomationConfig()
@@ -90,21 +90,14 @@ public struct MountProfile: Codable, Identifiable, Hashable, Sendable {
             newAuto.events = [.preMount] // Default WOL to pre-mount
             automations.append(newAuto)
         }
-        
+
         // New fields
         rules = try container.decodeIfPresent([MountRule].self, forKey: .rules) ?? []
         ruleLogic = try container.decodeIfPresent(RuleLogic.self, forKey: .ruleLogic) ?? .all
-        
+
         // Migration logic: Convert old SSIDs to rules if rules are empty
         if rules.isEmpty {
             if let ssids = try? container.decode([String].self, forKey: .allowedSSIDs), !ssids.isEmpty {
-                // If we had a list of allowed SSIDs, it effectively meant "Connect if ANY of these match"
-                // OR "Connect if current SSID is in this list".
-                // In the new system, we can represent this as:
-                // Rule Logic: ANY
-                // Rule 1: WiFi is SSID1
-                // Rule 2: WiFi is SSID2
-                // ...
                 ruleLogic = .any
                 for ssid in ssids {
                     rules.append(MountRule(type: .wifi, operator: .equals, value: ssid))
@@ -114,10 +107,11 @@ public struct MountProfile: Codable, Identifiable, Hashable, Sendable {
             }
         }
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
         try container.encode(serverURL, forKey: .serverURL)
         try container.encode(mountPoint, forKey: .mountPoint)
         try container.encode(isEnabled, forKey: .isEnabled)
@@ -197,7 +191,8 @@ public struct AutomationConfig: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-// For Migration
+// Migration-only types
+@available(*, deprecated, message: "Legacy type kept for data migration only")
 struct OldScriptConfig: Codable {
     var id = UUID()
     var path: String
@@ -206,10 +201,7 @@ struct OldScriptConfig: Codable {
     var events: Set<ScriptEvent>
 }
 
-// WOLConfig is deprecated, but kept for migration if needed by other files temporarily? 
-// No, I'm handling it in init(from:).
-// But wait, WOLConfig might be used in other files.
-// I will keep it but mark as deprecated or just use it for migration.
+@available(*, deprecated, message: "Legacy type kept for data migration only")
 public struct WOLConfig: Codable, Hashable, Sendable {
     public var macAddress: String = ""
     public var broadcastAddress: String = "255.255.255.255"
@@ -284,7 +276,7 @@ public struct MountRule: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-public enum MountStatus: Equatable {
+public enum MountStatus: Equatable, Sendable {
     case mounted
     case unmounted
     case error(String)

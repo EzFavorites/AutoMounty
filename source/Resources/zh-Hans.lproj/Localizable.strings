@@ -138,6 +138,52 @@
 "Run On:" = "运行于:";
 "Select when this automation should run" = "选择何时运行此自动化";
 
+/* Script Events */
+"Mounting" = "挂载中";
+"Mounted" = "已挂载";
+"Unmounting" = "卸载中";
+"Unmounted" = "已卸载";
+"Mount Failed" = "挂载失败";
+
+/* Automation Types */
+"Shell Script" = "Shell 脚本";
+"Application" = "应用程序";
+"Wake On LAN" = "网络唤醒";
+
 /* Server Config */
 "Hide Advanced Options" = "隐藏高级选项";
 "Show Advanced Options" = "显示高级选项";
+
+/* Tooltips */
+"Auto Mount Enabled" = "已启用自动挂载";
+"Add Server" = "添加服务器";
+"Open in Finder" = "在 Finder 中打开";
+"Unmount" = "卸载";
+"Enable or disable this task" = "启用或禁用此任务";
+"Delete this task" = "删除此任务";
+"Delete this rule" = "删除此规则";
+"Browse for file..." = "浏览文件...";
+"Select local mount point..." = "选择本地挂载点...";
+"Target MAC address for Wake-on-LAN" = "网络唤醒的目标 MAC 地址";
+"Broadcast address for the magic packet" = "魔术包的广播地址";
+"Command line arguments passed to the script" = "传递给脚本的命令行参数";
+
+/* Status Labels */
+"Connecting..." = "连接中...";
+"Error" = "错误";
+"Available" = "可用";
+
+/* Automation Details */
+"MAC Address" = "MAC 地址";
+"Broadcast" = "广播地址";
+"Wait" = "等待";
+"seconds" = "秒";
+"App Path" = "应用路径";
+"Script Path" = "脚本路径";
+"Arguments" = "参数";
+
+/* VPN Picker */
+"Empty for Any" = "留空表示任意";
+
+/* SMB Configured Tag */
+"(Configured)" = "(已配置)";

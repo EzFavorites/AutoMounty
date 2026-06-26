@@ -123,8 +123,8 @@ struct AutomationRow: View {
             .padding(4)
         }
     }
-        
-        @ViewBuilder
+
+    @ViewBuilder
     var wolFields: some View {
         LabeledContent("MAC Address") {
             TextField("", text: $automation.macAddress,prompt: Text("00:11:22:33:44:55"))

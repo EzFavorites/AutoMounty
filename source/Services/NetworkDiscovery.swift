@@ -103,31 +103,46 @@ class NetworkDiscovery: NSObject, ObservableObject, NetServiceDelegate {
         let name = sender.name
         let type = sender.type
         let addresses = sender.addresses ?? []
-        
+
         Task { @MainActor in
+            var resolvedIP: String?
+
             if !addresses.isEmpty {
+                // Prefer IPv4, fall back to IPv6
+                var ipv4Result: String?
+                var ipv6Result: String?
+
                 for address in addresses {
                     let data = address as NSData
                     var storage = sockaddr_storage()
                     data.getBytes(&storage, length: MemoryLayout<sockaddr_storage>.size)
-                    
-                    if storage.ss_family == sa_family_t(AF_INET) {
-                        let ip = String(cString: inet_ntoa(withUnsafePointer(to: &storage) {
+
+                    if storage.ss_family == sa_family_t(AF_INET) && ipv4Result == nil {
+                        ipv4Result = String(cString: inet_ntoa(withUnsafePointer(to: &storage) {
                             $0.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
                                 $0.pointee.sin_addr
                             }
                         }))
-                        
-                        Logger.debug("Resolved IP for \(name): \(ip)")
-                        
-                        if let index = self.discoveredServers.firstIndex(where: { $0.name == name && $0.type == type }) {
-                            self.discoveredServers[index].ipAddress = ip
+                    } else if storage.ss_family == sa_family_t(AF_INET6) && ipv6Result == nil {
+                        var addr = withUnsafePointer(to: &storage) {
+                            $0.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee.sin6_addr }
                         }
-                        break // Prefer IPv4, found one, stop
+                        var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+                        inet_ntop(AF_INET6, &addr, &buffer, socklen_t(INET6_ADDRSTRLEN))
+                        ipv6Result = String(cString: buffer)
                     }
                 }
+
+                resolvedIP = ipv4Result ?? ipv6Result
             }
-            
+
+            if let ip = resolvedIP {
+                Logger.debug("Resolved IP for \(name): \(ip)")
+                if let index = self.discoveredServers.firstIndex(where: { $0.name == name && $0.type == type }) {
+                    self.discoveredServers[index].ipAddress = ip
+                }
+            }
+
             if let index = self.activeResolutions.firstIndex(where: { $0.name == name && $0.type == type }) {
                 self.activeResolutions.remove(at: index)
             }
@@ -247,27 +262,43 @@ private class OneShotResolver: NSObject, NetServiceDelegate {
     
     func netServiceDidResolveAddress(_ sender: NetService) {
         guard !hasCalledCompletion else { return }
-        
+
         if let addresses = sender.addresses, !addresses.isEmpty {
+            var ipv4Result: String?
+            var ipv6Result: String?
+
             for address in addresses {
                 let data = address as NSData
                 var storage = sockaddr_storage()
                 data.getBytes(&storage, length: MemoryLayout<sockaddr_storage>.size)
-                
-                if storage.ss_family == sa_family_t(AF_INET) {
-                    let ip = String(cString: inet_ntoa(withUnsafePointer(to: &storage) {
+
+                if storage.ss_family == sa_family_t(AF_INET) && ipv4Result == nil {
+                    ipv4Result = String(cString: inet_ntoa(withUnsafePointer(to: &storage) {
                         $0.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
                             $0.pointee.sin_addr
                         }
                     }))
-                    
-                    hasCalledCompletion = true
-                    completion(ip)
-                    sender.stop()
-                    return
+                } else if storage.ss_family == sa_family_t(AF_INET6) && ipv6Result == nil {
+                    var addr = withUnsafePointer(to: &storage) {
+                        $0.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee.sin6_addr }
+                    }
+                    var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+                    inet_ntop(AF_INET6, &addr, &buffer, socklen_t(INET6_ADDRSTRLEN))
+                    ipv6Result = String(cString: buffer)
                 }
             }
+
+            if let ip = ipv4Result ?? ipv6Result {
+                hasCalledCompletion = true
+                completion(ip)
+                sender.stop()
+                return
+            }
         }
+
+        // No usable address found
+        hasCalledCompletion = true
+        completion(nil)
     }
     
     func netService(_ sender: NetService, didNotResolve errorDict: [String : NSNumber]) {

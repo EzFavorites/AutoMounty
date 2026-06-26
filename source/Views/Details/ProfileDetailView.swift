@@ -76,7 +76,7 @@ struct ProfileDetailView: View {
                     }
                 }
                 
-                // Bind to draftProfile
+                // Bind to draftProfile (safe: guarded by outer if-let above)
                 ServerConfigurationView(profile: Binding($draftProfile)!, allowProtocolChange: false)
                 
                 RuleConfigurationView(
@@ -108,13 +108,6 @@ struct ProfileDetailView: View {
         .padding()
         .toolbar {
             ToolbarItemGroup(placement: .confirmationAction) {
-                // For existing profile with changes, OR new profile (always show save/revert logic)
-                // If it's a new profile (not in config), we should allow saving if URL is not empty
-                // For new profile, hasChanges might be false if user hasn't typed yet, 
-                // but we might want to show "Save" (disabled?) or just rely on hasChanges.
-                // User said "show save button".
-                // If I start typing, hasChanges becomes true.
-                
                 let isNew = !ConfigManager.shared.profiles.contains(where: { $0.id == profile.id })
                 
                 if hasChanges || isNew {
@@ -152,8 +145,6 @@ struct ProfileDetailView: View {
         
         let needsReconnect = (draft.serverURL != profile.serverURL || draft.mountPoint != profile.mountPoint) && mounter.currentStatus[profile.id] == .mounted
         
-        // Update real profile
-        // Preserve isEnabled state from real profile just in case, though we sync them
         var newProfile = draft
         newProfile.isEnabled = profile.isEnabled 
         profile = newProfile
@@ -162,11 +153,11 @@ struct ProfileDetailView: View {
         if needsReconnect {
             Logger.info("Configuration changed significantly, reconnecting...")
             mounter.unmount(profileId: profile.id)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task {
+                try? await Task.sleep(nanoseconds: 1 * 1_000_000_000)
                 mounter.mount(profile: profile) { _ in }
             }
         } else if profile.isEnabled && profile.autoMount && mounter.currentStatus[profile.id] != .mounted {
-            // If enabled + autoMount is ON, and not currently mounted, trigger a check
             Logger.info("Configuration saved, checking auto-mount rules...")
             MountyMonitor.shared.checkAutoMount(for: profile)
         }

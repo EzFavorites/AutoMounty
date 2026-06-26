@@ -47,20 +47,23 @@ struct NetworkService {
     }
     
     // MARK: - Reachability (Ping)
-    
+
     /// Checks if a host is reachable via a simple ping command.
-    /// - Parameter host: The hostname or IP address to check.
-    /// - Returns: True if the host responds to ping, false otherwise.
     func isHostReachable(_ host: String) async -> Bool {
-        // Simple reachability check using ping (one packet, 1s timeout)
+        // Find ping binary — location varies across macOS versions
+        let pingPaths = ["/sbin/ping", "/usr/sbin/ping"]
+        guard let pingPath = pingPaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+            Logger.error("ping binary not found")
+            return false
+        }
+
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/sbin/ping")
+        process.executableURL = URL(fileURLWithPath: pingPath)
         process.arguments = ["-c", "1", "-t", "1", host]
-        
-        // Redirect output to avoid clutter
+
         process.standardOutput = Pipe()
         process.standardError = Pipe()
-        
+
         do {
             try process.run()
             process.waitUntilExit()

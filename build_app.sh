@@ -1,21 +1,18 @@
 #!/bin/bash
 
-set -e pipefail
+set -eo pipefail
 
 # 0. Run Tests
 echo "Running Tests..."
 swift test
-if [ $? -ne 0 ]; then
-    echo "Tests failed! Aborting build."
-    exit 1
-fi
 
 # 1. Build the executable
 echo "Building AutoMounty..."
 swift build --disable-sandbox -c release
 
-# 2. Define paths
-BUILD_DIR=".build/arm64-apple-macosx/release"
+# 2. Define paths (architecture-aware)
+ARCH=$(uname -m)
+BUILD_DIR=".build/${ARCH}-apple-macosx/release"
 APP_NAME="AutoMounty.app"
 APP_DIR="$PWD/$APP_NAME"
 CONTENTS_DIR="$APP_DIR/Contents"

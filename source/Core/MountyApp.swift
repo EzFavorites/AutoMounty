@@ -23,21 +23,20 @@ struct MountyApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private let mainWindowOpenDelay: TimeInterval = 0.5
+    private let bonjourTimeout: TimeInterval = 5.0
+    private var bonjourTimeoutWorkItem: DispatchWorkItem?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 如果是纯二进制运行，默认可能需要 regular；但如果通过 Info.plist 设置了 LSUIElement=1，
-        // 这里设置为 accessory 可以确保它是菜单栏应用，不显示 Dock 图标
-        // 注意：SwiftUI Window Scene 默认会自动显示，如果不想显示，需要特殊处理
-        // 或者依赖 LSUIElement 配合。
-        
-        // 我们在 Info.plist 中设置 LSUIElement 为 true，应用启动时不会显示窗口
-        
+        // Info.plist sets LSUIElement=true; app starts as menu bar only.
+
         // Set default preferences
         UserDefaults.standard.register(defaults: [
             "AutoUpdateBonjourIP": true,
             "LaunchOpenMainWindow": true,
             "ShowDockIcon": true
         ])
-        
+
         // Handle Dock Icon preference
         let showDockIcon = UserDefaults.standard.bool(forKey: "ShowDockIcon")
         if showDockIcon {
@@ -45,43 +44,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             NSApp.setActivationPolicy(.accessory)
         }
-        
+
         // Handle Open Main Window preference
         if UserDefaults.standard.bool(forKey: "LaunchOpenMainWindow") {
-            // Delay slightly to ensure app is ready to handle URL
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + mainWindowOpenDelay) {
                 if let url = URL(string: "mounty://main") {
                     NSWorkspace.shared.open(url)
                 }
             }
         }
-        
-        // Scan for existing network mounts
-        MountyManager.shared.scanAndImportMounts()
-        
+
+        // Scan for existing network mounts on background queue
+        Task { @MainActor in
+            MountyManager.shared.scanAndImportMounts()
+        }
+
         // Check if we should update IPs before starting monitor
         if UserDefaults.standard.bool(forKey: "AutoUpdateBonjourIP") {
             Logger.info("Starting Bonjour IP update check...")
-            
-            var hasStarted = false
-            func startMonitor() {
-                if !hasStarted {
-                    hasStarted = true
-                    MountyMonitor.shared.start()
-                }
+
+            // Use a cancellable work item for timeout safety
+            let timeoutWorkItem = DispatchWorkItem { [weak self] in
+                self?.bonjourTimeoutWorkItem = nil
+                Logger.error("Bonjour IP update check timed out. Forcing start.")
+                MountyMonitor.shared.start()
             }
-            
-            // Timeout safety net (5 seconds)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                if !hasStarted {
-                    Logger.error("Bonjour IP update check timed out. Forcing start.")
-                    startMonitor()
-                }
-            }
-            
-            NetworkDiscovery.shared.updateBonjourIPs(for: ConfigManager.shared.profiles) {
+            bonjourTimeoutWorkItem = timeoutWorkItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + bonjourTimeout, execute: timeoutWorkItem)
+
+            NetworkDiscovery.shared.updateBonjourIPs(for: ConfigManager.shared.profiles) { [weak self] in
+                // Cancel timeout if Bonjour finished first
+                self?.bonjourTimeoutWorkItem?.cancel()
+                self?.bonjourTimeoutWorkItem = nil
                 Logger.info("Bonjour IP update check completed.")
-                startMonitor()
+                MountyMonitor.shared.start()
             }
         } else {
             MountyMonitor.shared.start()

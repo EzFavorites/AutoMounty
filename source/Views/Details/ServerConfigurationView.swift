@@ -346,14 +346,13 @@ struct ServerConfigurationView: View {
     private func updateURL() {
         var components = URLComponents()
         components.scheme = selectedProtocol.scheme
-        components.host = host.isEmpty ? "server" : host
+        components.host = host.isEmpty ? nil : host
         if let p = Int(port) {
             components.port = p
         }
         if !username.isEmpty {
             components.user = username
         }
-        // Ensure path starts with / if not empty
         if !path.isEmpty {
             components.path = path.hasPrefix("/") ? path : "/" + path
         } else {
@@ -412,50 +411,47 @@ struct ServerConfigurationView: View {
         }
     }
     
-    nonisolated private func runSMBUtil(host: String, username: String, options: [String]) async -> [String]? {
+    private func runSMBUtil(host: String, username: String, options: [String]) async -> [String]? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/smbutil")
-        
+
         var urlString = "//"
         if !username.isEmpty {
             urlString += "\(username)@"
         }
         urlString += host
-        
-        // Construct args: view [options] //user@host
+
         var args = ["view"]
         args.append(contentsOf: options)
         args.append(urlString)
-        
+
         process.arguments = args
-        
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        // We might want to capture stderr too for debugging, but smbutil often prints errors to stdout too
-        
-        return await withCheckedContinuation { continuation in
-            do {
-                try process.run()
-                process.waitUntilExit()
-                
-                if process.terminationStatus == 0 {
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    if let output = String(data: data, encoding: .utf8) {
-                        continuation.resume(returning: parseSMBOutput(output))
-                    } else {
-                        continuation.resume(returning: [])
-                    }
-                } else {
-                    continuation.resume(returning: nil)
+
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        do {
+            try process.run()
+            let exitCode = await MountyManager.waitForProcess(process, timeout: 15)
+
+            if exitCode == 0 {
+                let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                if let output = String(data: data, encoding: .utf8) {
+                    return parseSMBOutput(output)
                 }
-            } catch {
-                print("SMB Fetch Error: \(error)")
-                continuation.resume(returning: nil)
+                return []
+            } else {
+                return nil
             }
+        } catch {
+            Logger.error("SMB Fetch Error: \(error)")
+            return nil
         }
     }
-    
-    nonisolated private func parseSMBOutput(_ output: String) -> [String] {
+
+    private func parseSMBOutput(_ output: String) -> [String] {
         // Output format:
         // Share        Type       Comments
         // -------------------------------
