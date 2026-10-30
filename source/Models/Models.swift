@@ -35,6 +35,24 @@ public struct MountProfile: Codable, Identifiable, Hashable, Sendable {
         return serverURL
     }
 
+    /// Normalize a server URL for deduplication comparison.
+    /// Lowercased, trimmed of leading/trailing slashes, username stripped.
+    public static func normalizedURLString(_ raw: String) -> String {
+        guard let url = URL(string: raw) else {
+            return raw.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        components?.user = nil
+        components?.password = nil
+        let result = components?.string ?? raw
+        return result.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    }
+
+    /// Instance convenience accessor.
+    public var normalizedServerURL: String {
+        return MountProfile.normalizedURLString(serverURL)
+    }
+
     // Custom decoding to handle migration
     enum CodingKeys: String, CodingKey {
         case id, schemaVersion, serverURL, mountPoint, allowedSSIDs, isEnabled, autoMount, wifiSSID, rules, ruleLogic, bonjourHostname, scripts, wolConfig, automations

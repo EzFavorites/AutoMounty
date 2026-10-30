@@ -11,7 +11,7 @@ struct ProfileDetailView: View {
     @State private var runningApps: [String] = []
     @State private var installedApps: [String] = []
     @State private var showingDeleteAlert = false
-    
+    @State private var showingDuplicateAlert = false
     // Check if there are unsaved changes (excluding isEnabled which is synced immediately)
     var hasChanges: Bool {
         guard let draft = draftProfile else { return false }
@@ -125,6 +125,11 @@ struct ProfileDetailView: View {
                 }
             }
         }
+        .alert(LocalizedStringKey("Duplicate Server URL"), isPresented: $showingDuplicateAlert) {
+            Button(LocalizedStringKey("OK"), role: .cancel) { }
+        } message: {
+            Text(LocalizedStringKey("A configuration with the same server URL already exists. Please choose a different URL."))
+        }
         .alert(LocalizedStringKey("Delete Profile"), isPresented: $showingDeleteAlert) {
             Button(LocalizedStringKey("Delete"), role: .destructive) {
                 ConfigManager.shared.delete(id: profile.id)
@@ -139,16 +144,26 @@ struct ProfileDetailView: View {
             await refreshData()
         }
     }
-    
     private func saveChanges() {
         guard let draft = draftProfile else { return }
-        
+
+        let isNew = !ConfigManager.shared.profiles.contains(where: { $0.id == profile.id })
+
+        // For new profiles, check for duplicate URL
+        if isNew {
+            let normalized = MountProfile.normalizedURLString(draft.serverURL)
+            if ConfigManager.shared.profiles.contains(where: { MountProfile.normalizedURLString($0.serverURL) == normalized }) {
+                showingDuplicateAlert = true
+                return
+            }
+        }
+
         let needsReconnect = (draft.serverURL != profile.serverURL || draft.mountPoint != profile.mountPoint) && mounter.currentStatus[profile.id] == .mounted
-        
+
         var newProfile = draft
-        newProfile.isEnabled = profile.isEnabled 
+        newProfile.isEnabled = profile.isEnabled
         profile = newProfile
-        
+
         // Handle Reconnect if needed
         if needsReconnect {
             Logger.info("Configuration changed significantly, reconnecting...")

@@ -487,22 +487,17 @@ struct ServerConfigurationView: View {
     
     @MainActor
     private func isShareConfigured(_ sharePath: String) -> Bool {
-        let cleanShare = sharePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        
-        // Check against all profiles in ConfigManager
+        // Build a candidate URL from current host + sharePath
+        guard let currentUrl = URL(string: self.profile.serverURL) else { return false }
+        var components = URLComponents()
+        components.scheme = currentUrl.scheme
+        components.host = currentUrl.host
+        components.port = currentUrl.port
+        components.path = sharePath
+        guard let candidateURL = components.string else { return false }
+
         return ConfigManager.shared.profiles.contains { profile in
-            // Compare Host and Path
-            guard let url = URL(string: profile.serverURL),
-                  let currentUrl = URL(string: self.profile.serverURL) else { return false }
-            
-            // Check Host match (case insensitive)
-            if url.host?.lowercased() != currentUrl.host?.lowercased() {
-                return false
-            }
-            
-            // Check Path match
-            let profilePath = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            return profilePath == cleanShare
+            MountProfile.normalizedURLString(profile.serverURL) == MountProfile.normalizedURLString(candidateURL)
         }
     }
     

@@ -95,9 +95,17 @@ class ConfigManager: ObservableObject {
         }
     }
 
-    func add(profile: MountProfile) {
+    /// Adds a profile. Returns true if added, false if a duplicate URL already exists.
+    @discardableResult
+    func add(profile: MountProfile) -> Bool {
+        let normalized = MountProfile.normalizedURLString(profile.serverURL)
+        if profiles.contains(where: { MountProfile.normalizedURLString($0.serverURL) == normalized }) {
+            Logger.info("Duplicate URL rejected: \(profile.serverURL)")
+            return false
+        }
         profiles.append(profile)
         Logger.info("Added new profile: \(profile.serverURL)")
+        return true
     }
 
     func update(profile: MountProfile) {

@@ -54,4 +54,26 @@ final class AutoMountyTests: XCTestCase {
         let anyLogic = RuleLogic.any
         XCTAssertEqual(anyLogic.id, "Any")
     }
+
+    func testNormalizedServerURL() {
+        // Same URL with different case should normalize equally
+        let p1 = MountProfile(serverURL: "smb://Server/Share", mountPoint: "")
+        let p2 = MountProfile(serverURL: "smb://server/share", mountPoint: "")
+        XCTAssertEqual(p1.normalizedServerURL, p2.normalizedServerURL, "Case-insensitive match")
+
+        // Username should be stripped
+        let p3 = MountProfile(serverURL: "smb://user@server/share", mountPoint: "")
+        let p4 = MountProfile(serverURL: "smb://server/share", mountPoint: "")
+        XCTAssertEqual(p3.normalizedServerURL, p4.normalizedServerURL, "Username stripped")
+
+        // Trailing slashes should be trimmed
+        let p5 = MountProfile(serverURL: "smb://server/share/", mountPoint: "")
+        let p6 = MountProfile(serverURL: "smb://server/share", mountPoint: "")
+        XCTAssertEqual(p5.normalizedServerURL, p6.normalizedServerURL, "Trailing slash trimmed")
+
+        // Different paths should NOT match
+        let p7 = MountProfile(serverURL: "smb://server/share1", mountPoint: "")
+        let p8 = MountProfile(serverURL: "smb://server/share2", mountPoint: "")
+        XCTAssertNotEqual(p7.normalizedServerURL, p8.normalizedServerURL, "Different paths")
+    }
 }

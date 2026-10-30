@@ -441,19 +441,15 @@ class MountyManager: ObservableObject {
                     serverURL = "afp://" + serverURL
                 }
 
-                let normalizedServerURL = serverURL.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-
                 if let existingProfile = ConfigManager.shared.profiles.first(where: {
-                    $0.serverURL.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "/")) == normalizedServerURL
+                    MountProfile.normalizedURLString($0.serverURL) == MountProfile.normalizedURLString(serverURL)
                 }) {
                     Logger.debug("Found existing mounted profile: \(serverURL)")
                     self.updateStatus(for: existingProfile.id, status: .mounted)
                     self.mountPaths[existingProfile.id] = f_mntonname
-                } else if !ConfigManager.shared.profiles.contains(where: {
-                    $0.serverURL.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "/")) == normalizedServerURL
-                }) {
+                } else {
                     Logger.info("Importing found mount: \(serverURL) at \(f_mntonname)")
-                    let newProfile = MountProfile(serverURL: serverURL, mountPoint: "")
+                    let newProfile = MountProfile(serverURL: serverURL, mountPoint: f_mntonname)
                     ConfigManager.shared.add(profile: newProfile)
                     self.updateStatus(for: newProfile.id, status: .mounted)
                     self.mountPaths[newProfile.id] = f_mntonname
@@ -492,9 +488,8 @@ class MountyManager: ObservableObject {
         }
 
         // 2. Check by URL
-        let normalizedURL = url.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if let existingProfile = ConfigManager.shared.profiles.first(where: {
-            $0.serverURL.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "/")) == normalizedURL
+            MountProfile.normalizedURLString($0.serverURL) == MountProfile.normalizedURLString(url)
         }) {
             if existingProfile.bonjourHostname == nil && bonjourHostname != nil {
                 var updated = existingProfile
@@ -547,7 +542,7 @@ class MountyManager: ObservableObject {
 
                     let newProfile = MountProfile(serverURL: finalURL, mountPoint: mountPoint, bonjourHostname: bonjourHostname)
 
-                    if let existing = ConfigManager.shared.profiles.first(where: { $0.serverURL == finalURL }) {
+                    if let existing = ConfigManager.shared.profiles.first(where: { MountProfile.normalizedURLString($0.serverURL) == MountProfile.normalizedURLString(finalURL) }) {
                         Logger.info("Profile already exists for \(finalURL). Skipping add.")
                         // Transfer status from temp to existing
                         self.mountPaths.removeValue(forKey: tempProfile.id)
