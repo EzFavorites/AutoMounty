@@ -176,7 +176,7 @@ public struct AutomationConfig: Codable, Identifiable, Hashable, Sendable {
     public var broadcastAddress: String = "255.255.255.255"
     public var port: UInt16 = 9
     public var waitTime: TimeInterval = 0
-    
+
     public init(id: UUID = UUID(), type: AutomationType = .shell, enabled: Bool = true, path: String = "", arguments: String = "", events: Set<ScriptEvent> = [], macAddress: String = "", broadcastAddress: String = "255.255.255.255", port: UInt16 = 9, waitTime: TimeInterval = 0) {
         self.id = id
         self.type = type
@@ -188,6 +188,40 @@ public struct AutomationConfig: Codable, Identifiable, Hashable, Sendable {
         self.broadcastAddress = broadcastAddress
         self.port = port
         self.waitTime = waitTime
+    }
+
+    // Custom CodingKeys to encode WOL fields under their own keys
+    private enum CodingKeys: String, CodingKey {
+        case id, type, enabled, path, arguments, events
+        case macAddress, broadcastAddress, port, waitTime
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        type = try container.decodeIfPresent(AutomationType.self, forKey: .type) ?? .shell
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        path = try container.decodeIfPresent(String.self, forKey: .path) ?? ""
+        arguments = try container.decodeIfPresent(String.self, forKey: .arguments) ?? ""
+        events = try container.decodeIfPresent(Set<ScriptEvent>.self, forKey: .events) ?? []
+        macAddress = try container.decodeIfPresent(String.self, forKey: .macAddress) ?? ""
+        broadcastAddress = try container.decodeIfPresent(String.self, forKey: .broadcastAddress) ?? "255.255.255.255"
+        port = try container.decodeIfPresent(UInt16.self, forKey: .port) ?? 9
+        waitTime = try container.decodeIfPresent(TimeInterval.self, forKey: .waitTime) ?? 0
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(type, forKey: .type)
+        try container.encode(enabled, forKey: .enabled)
+        try container.encode(path, forKey: .path)
+        try container.encode(arguments, forKey: .arguments)
+        try container.encode(events, forKey: .events)
+        try container.encode(macAddress, forKey: .macAddress)
+        try container.encode(broadcastAddress, forKey: .broadcastAddress)
+        try container.encode(port, forKey: .port)
+        try container.encode(waitTime, forKey: .waitTime)
     }
 }
 

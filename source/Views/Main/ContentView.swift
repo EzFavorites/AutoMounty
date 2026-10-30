@@ -107,6 +107,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .addNewProfile)) { _ in
             addNewProfile()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            showingSettings = true
+        }
         .onReceive(NotificationCenter.default.publisher(for: .selectMountProfile)) { notification in
             if let id = notification.userInfo?["id"] as? UUID {
                 // Delay slightly to ensure list is updated

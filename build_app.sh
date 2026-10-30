@@ -10,9 +10,8 @@ swift test
 echo "Building AutoMounty..."
 swift build --disable-sandbox -c release
 
-# 2. Define paths (architecture-aware)
-ARCH=$(uname -m)
-BUILD_DIR=".build/${ARCH}-apple-macosx/release"
+# 2. Define paths
+BUILD_DIR=".build/out/Products/release"
 APP_NAME="AutoMounty.app"
 APP_DIR="$PWD/$APP_NAME"
 CONTENTS_DIR="$APP_DIR/Contents"
@@ -45,12 +44,12 @@ PROCESS_NAME="${APP_NAME%.*}"
 if pgrep -x "$PROCESS_NAME" > /dev/null; then
     echo "Stopping existing $PROCESS_NAME..."
     killall "$PROCESS_NAME"
-    
+
     # Wait for it to close
     while pgrep -x "$PROCESS_NAME" > /dev/null; do
         sleep 0.5
     done
 fi
 
-echo "Starting $APP_NAME..."
+echo "Starting $PROCESS_NAME..."
 open "$APP_DIR"

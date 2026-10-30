@@ -6,6 +6,11 @@ struct SettingsView: View {
     @ObservedObject var systemInfo = SystemInfoService.shared
     @Environment(\.dismiss) var dismiss
     
+    @AppStorage("LaunchOpenMainWindow") private var launchOpenMainWindow = true
+    @AppStorage("ShowDockIcon") private var showDockIcon = true
+    @AppStorage("AutoUpdateBonjourIP") private var autoUpdateBonjourIP = true
+
+    
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -25,27 +30,18 @@ struct SettingsView: View {
                         set: { systemInfo.setLaunchAtLoginEnabled($0) }
                     ))
                     
-                    Toggle("Open Main Window on Launch", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: "LaunchOpenMainWindow") },
-                        set: { UserDefaults.standard.set($0, forKey: "LaunchOpenMainWindow") }
-                    ))
+                    Toggle("Open Main Window on Launch", isOn: $launchOpenMainWindow)
                     
-                    Toggle("Show Icon in Dock", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: "ShowDockIcon") },
-                        set: { newValue in
-                            UserDefaults.standard.set(newValue, forKey: "ShowDockIcon")
+                    Toggle("Show Icon in Dock", isOn: $showDockIcon)
+                        .onChange(of: showDockIcon) { newValue in
                             let policy: NSApplication.ActivationPolicy = newValue ? .regular : .accessory
                             NSApp.setActivationPolicy(policy)
                             if newValue {
                                 NSApp.activate(ignoringOtherApps: true)
                             }
                         }
-                    ))
                     
-                    Toggle("Auto Update Server IP via Bonjour", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: "AutoUpdateBonjourIP") },
-                        set: { UserDefaults.standard.set($0, forKey: "AutoUpdateBonjourIP") }
-                    ))
+                    Toggle("Auto Update Server IP via Bonjour", isOn: $autoUpdateBonjourIP)
                 }
                 
                 Section(header: Text("Logging")) {
